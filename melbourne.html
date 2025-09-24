@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <title>F1 Top-Down - Checkpoints corregidos + Tiempos</title>
+  <title>melbourne</title>
   <style>
     body { margin:0; background:#000; display:flex; justify-content:center; align-items:center; height:100vh; }
     canvas { background:#111; border:2px solid #e11d48; }
@@ -39,8 +39,8 @@
     const SHOW_DEBUG = true;
 
     // recursos
-    const track = new Image(); track.src = "Imagenes/melbourne.png";
-    const car = new Image(); track.onload = () => {}; car.src = "Imagenes/rojo.png";
+    const track = new Image(); track.src = "melbourne.png";
+    const car = new Image(); track.onload = () => {}; car.src = "rojo.png";
 
     // carrera / checkpoints
     let currentCheckpoint = 0;
@@ -208,7 +208,7 @@ const aiCar = {
   img: new Image()
 };
 
-aiCar.img.src = "Imagenes/verde.png";
+aiCar.img.src = "verde.png";
 const AI_CARS = [aiCar];
 
 const AI_SPEED = 450; 
