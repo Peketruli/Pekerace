@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>F1 2D – Game</title>
+  <style>
+    body {
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background: #000;
+      position: relative;
+    }
+    canvas {
+      border: 2px solid #e11d48;
+    }
+    .menu-btn {
+      position: absolute;
+      padding: 0.5rem 1rem;
+      font-size: 1.1rem;
+      border: 2px solid #e11d48;
+      border-radius: 10px;
+      background: #12151c;
+      color: white;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .menu-btn:hover {
+      background: #e11d48;
+    }
+    #startBtn { top: 650px; left: 50px; }
+    #menuBtn { top: 650px; left: 200px; }
+
+    /* Ventana emergente para mostrar la carrera */
+    #raceInfo {
+      position: absolute;
+      top: 100px;
+      left: 300px;
+      width: 900px;
+      background: #12151c;
+      color: white;
+      border: 3px solid #e11d48;
+      border-radius: 12px;
+      padding: 20px;
+      display: none;
+      z-index: 10;
+    }
+    #raceInfo img {
+      max-width: 180px;
+      border-radius: 8px;
+      margin: 10px;
+    }
+    #raceInfo h2 {
+      margin-top: 0;
+      color: #e11d48;
+    }
+    #closeRaceBtn {
+      margin-top: 15px;
+      padding: 0.5rem 1rem;
+      background: #e11d48;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas" width="1500" height="760"></canvas>
+
+  <!-- Botones -->
+  <button id="startBtn" class="menu-btn">START</button>
+  <button id="menuBtn" class="menu-btn">MENU</button>
+
+  <!-- Info de la carrera -->
+  <div id="raceInfo">
+    <h2>🏁 Próxima Carrera</h2>
+    <p><strong>Fecha:</strong> 16/03/2025</p>
+    <p><strong>Carrera:</strong> Gran Premio de Australia</p>
+    <p><strong>Circuito:</strong> Melbourne</p>
+    <img src="banderas/australia.png" alt="Bandera de Australia">
+    <img src="circuitos/melbourne.png" alt="Circuito de Melbourne">
+    <br>
+    <button id="closeRaceBtn">Cerrar</button>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const selectedTeam = JSON.parse(localStorage.getItem('selectedTeam'));
+    const selectedDriver = localStorage.getItem('selectedDriver');
+
+let currentRace = parseInt(localStorage.getItem("currentRace")) || 0;
+
+    const bg = new Image();
+    bg.src = 'Imagenes/H.png'; // tu imagen de fondo
+    bg.onload = () => drawRoom();
+
+    const computer = {
+      x: 530,
+      y: canvas.height - 450,
+      width: 150,
+      height: 100
+    };
+
+    function drawRoom() {
+      ctx.drawImage(bg, 0, 0, canvas.width, canvas.height);
+
+      if (selectedTeam && selectedTeam.logo) {
+        const img = new Image();
+        img.src = selectedTeam.logo;
+        img.onload = () => {
+          const aspectRatio = img.width / img.height;
+          const width = 45;
+          const height = width / aspectRatio;
+          ctx.drawImage(img, 585, 317, width, height);
+          drawTexts();
+          drawComputerRect();
+        }
+      } else {
+        drawTexts();
+        drawComputerRect();
+      }
+    }
+
+    function highlightCompletedRaces() {
+  const rows = document.querySelectorAll("#computerDiv table tr");
+  // Saltamos la cabecera (empieza en i = 1)
+  for (let i = 1; i <= currentRace; i++) {
+    if (rows[i]) {
+      rows[i].style.color = "limegreen";
+      rows[i].style.fontWeight = "bold";
+    }
+  }
+}
+
+
+    function drawComputerRect() {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0)';
+      ctx.fillRect(computer.x, computer.y, computer.width, computer.height);
+    }
+
+    // Detectar clics en ordenador
+    canvas.addEventListener('click', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      if (
+        mouseX >= computer.x &&
+        mouseX <= computer.x + computer.width &&
+        mouseY >= computer.y &&
+        mouseY <= computer.y + computer.height
+      ) {
+        openComputer();
+        highlightCompletedRaces();
+      }
+    });
+
+    function openComputer() {
+      const compDiv = document.createElement('div');
+      compDiv.style.position = 'absolute';
+      compDiv.style.left = '400px';
+      compDiv.style.top = '200px';
+      compDiv.style.width = '600px';
+      compDiv.style.height = '400px';
+      compDiv.style.background = '#222';
+      compDiv.style.border = '3px solid #e11d48';
+      compDiv.style.borderRadius = '10px';
+      compDiv.style.color = 'white';
+      compDiv.style.padding = '20px';
+      compDiv.style.overflowY = 'auto';
+      compDiv.id = 'computerDiv';
+
+      compDiv.innerHTML = `
+        <h2>Gmail - Bandeja de entrada</h2>
+        <p>📧 Bienvenido a ${selectedTeam ? selectedTeam.name : 'Sin seleccionar'}, ${selectedDriver || 'Piloto'}!</p>
+        <p>📧 Recuerda preparar tu primera carrera.</p>
+        <h3>📅 Calendario de Carreras 2025</h3>
+    <table style="width:100%; border-collapse: collapse; text-align:left;">
+      <tr style="border-bottom: 1px solid white;">
+        <th>Fecha</th>
+        <th>Carrera</th>
+        <th>Pista</th>
+      </tr>
+      <tr style="border-bottom: 1px solid white;"><td>16/03/2025</td><td>Gran Premio de Australia</td><td>Melbourne</td></tr>
+      <tr style="border-bottom: 1px solid white;"><td>23/03/2025</td><td>Gran Premio de China</td><td>Shanghai</td></tr>
+      <tr style="border-bottom: 1px solid white;"><td>30/03/2025</td><td>Gran Premio de Japón</td><td>Suzuka</td></tr>
+      <tr style="border-bottom: 1px solid white;"><td>06/04/2025</td><td>Gran Premio de Baréin</td><td>Sakhir</td></tr>
+      <tr style="border-bottom: 1px solid white;"><td>13/04/2025</td><td>Gran Premio de Arabia Saudita</td><td>Jeddah</td></tr>
+      <tr style="border-bottom: 1px solid white;"><td>27/04/2025</td><td>Gran Premio de Azerbaiyán</td><td>Bakú</td></tr>
+      <tr style="border-bottom: 1px solid white;"><td>04/05/2025</td><td>Gran Premio de España</td><td>Montmeló</td></tr>
+      <tr style="border-bottom: 1px solid white;"><td>11/05/2025</td><td>Gran Premio de Mónaco</td><td>Montecarlo</td></tr>
+      <tr style="border-bottom: 1px solid white;"><td>18/05/2025</td><td>Gran Premio de Italia</td><td>Imola</td></tr>
+      <tr style="border-bottom: 1px solid white;"><td>25/05/2025</td><td>Gran Premio de Países Bajos</td><td>Zandvoort</td></tr>
+      <tr style="border-bottom: 1px solid white;"><td>01/06/2025</td><td>Gran Premio de Austria</td><td>Spielberg</td></tr>
+      <tr style="border-bottom: 1px solid white;"><td>08/06/2025</td><td>Gran Premio de Gran Bretaña</td><td>Silverstone</td></tr>
+      <tr style="border-bottom: 1px solid white;"><td>22/06/2025</td><td>Gran Premio de Hungría</td><td>Budapest</td></tr>
+      <tr style="border-bottom: 1px solid white;"><td>29/06/2025</td><td>Gran Premio de Bélgica</td><td>Spa-Francorchamps</td></tr>
+      <tr style="border-bottom: 1px solid white;"><td>06/07/2025</td><td>Gran Premio de Canadá</td><td>Montreal</td></tr>
+      <tr style="border-bottom: 1px solid white;"><td>13/07/2025</td><td>Gran Premio de Austria</td><td>Spielberg</td></tr>
+      <tr style="border-bottom: 1px solid white;"><td>20/07/2025</td><td>Gran Premio de Gran Bretaña</td><td>Silverstone</td></tr>
+      <tr style="border-bottom: 1px solid white;"><td>27/07/2025</td><td>Gran Premio de Hungría</td><td>Budapest</td></tr>
+      <tr style="border-bottom: 1px solid white;"><td>03/08/2025</td><td>Gran Premio de Bélgica</td><td>Spa-Francorchamps</td></tr>
+      <tr style="border-bottom: 1px solid white;"><td>10/08/2025</td><td>Gran Premio de Países Bajos</td><td>Zandvoort</td></tr>
+      <tr style="border-bottom: 1px solid white;"><td>17/08/2025</td><td>Gran Premio de Italia</td><td>Monza</td></tr>
+      <tr style="border-bottom: 1px solid white;"><td>24/08/2025</td><td>Gran Premio de Singapur</td><td>Marina Bay</td></tr>
+      <tr style="border-bottom: 1px solid white;"><td>31/08/2025</td><td>Gran Premio de Japón</td><td>Suzuka</td></tr>
+      <tr style="border-bottom: 1px solid white;"><td>07/09/2025</td><td>Gran Premio de México</td><td>Autódromo Hermanos Rodríguez</td></tr>
+      <tr style="border-bottom: 1px solid white;"><td>14/09/2025</td><td>Gran Premio de Estados Unidos</td><td>Austin</td></tr>
+      <tr style="border-bottom: 1px solid white;"><td>21/09/2025</td><td>Gran Premio de Brasil</td><td>Interlagos</td></tr>
+      <tr style="border-bottom: 1px solid white;"><td>28/09/2025</td><td>Gran Premio de Las Vegas</td><td>Las Vegas</td></tr>
+      <tr style="border-bottom: 1px solid white;"><td>05/10/2025</td><td>Gran Premio de Catar</td><td>Losail</td></tr>
+      <tr style="border-bottom: 1px solid white;"><td>12/10/2025</td><td>Gran Premio de Abu Dabi</td><td>Yas Marina</td></tr>
+    </table>
+        <button id="closeComputerBtn">Cerrar</button>
+      `;
+
+      document.body.appendChild(compDiv);
+
+      document.getElementById('closeComputerBtn').addEventListener('click', () => {
+        document.getElementById('computerDiv').remove();
+      });
+    }
+
+    function drawTexts() {
+      ctx.fillStyle = 'white';
+      ctx.font = '32px sans-serif';
+      ctx.fillText(`Piloto: ${selectedDriver || 'Sin seleccionar'}`, 50, 50);
+      ctx.fillText(`Equipo: ${selectedTeam ? selectedTeam.name : 'Sin seleccionar'}`, 50, 100);
+      ctx.font = '24px sans-serif';
+      ctx.fillText('Presiona START para iniciar la carrera', 50, canvas.height - 50);
+    }
+
+// Botón START
+document.getElementById('startBtn').addEventListener('click', () => {
+  openRacePanel();
+});
+
+const races = [
+  { name: "Gran Premio de Australia", date: "16/03/2025", track: "Melbourne", file: "melbourne.html" },
+  { name: "Gran Premio de China", date: "23/03/2025", track: "Shanghai", file: "shanghai.html" },
+  { name: "Gran Premio de Japón", date: "30/03/2025", track: "Suzuka", file: "suzuka.html" },
+  // ... añade todas las demás
+];
+
+function openRacePanel() {
+  const next = races[currentRace]; // la próxima carrera según progreso
+
+  const raceDiv = document.createElement('div');
+  raceDiv.id = 'racePanel';
+  raceDiv.style = "position:absolute; left:400px; top:150px; width:650px; height:450px; background:#111; border:3px solid #e11d48; border-radius:12px; color:white; padding:20px; overflow-y:auto;";
+
+  raceDiv.innerHTML = `
+    <h2>🏎️ Próxima Carrera</h2>
+    <p><strong>${next.name}</strong></p>
+    <p><b>Fecha:</b> ${next.date}</p>
+    <p><b>Pista:</b> ${next.track}</p>
+    <p>Prepárate para la siguiente carrera de la temporada.</p>
+
+    <button id="goToRaceBtn">Ir a la carrera</button>
+    <button id="closeRacePanelBtn">Cerrar</button>
+  `;
+
+  document.body.appendChild(raceDiv);
+
+  // Cerrar
+  document.getElementById('closeRacePanelBtn').addEventListener('click', () => {
+    raceDiv.remove();
+  });
+
+  // Ir a la carrera correcta
+  document.getElementById('goToRaceBtn').addEventListener('click', () => {
+    window.location.href = next.file;
+  });
+}
+
+localStorage.setItem("currentRace", 1); // Melbourne completada
+
+    document.getElementById('menuBtn').addEventListener('click', () => {
+      window.location.href = 'Menu.html';
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>F1 Top-Down - Checkpoints corregidos + Tiempos</title>
+  <style>
+    body { margin:0; background:#000; display:flex; justify-content:center; align-items:center; height:100vh; }
+    canvas { background:#111; border:2px solid #e11d48; }
+    #hud {
+      position:fixed; top:10px; left:10px; color:#fff; font-family:sans-serif;
+      background:rgba(0,0,0,0.5); padding:6px 10px; border-radius:6px;
+      white-space:pre-line;
+    }
+  </style>
+</head>
+<body>
+  <button id="nextRaceBtn" style="
+  position: fixed;
+  top: 60%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 15px 30px;
+  font-size: 20px;
+  font-weight: bold;
+  background: #e11d48;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  display: none;
+">Ir al menú</button>
+  <canvas id="game" width="1500" height="760"></canvas>
+  <div id="hud">Vel: 0</div>
+  <script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+    const hud = document.getElementById("hud");
+
+    const SHOW_DEBUG = true;
+
+    // recursos
+    const track = new Image(); track.src = "Imagenes/melbourne.png";
+    const car = new Image(); track.onload = () => {}; car.src = "Imagenes/rojo.png";
+
+    // carrera / checkpoints
+    let currentCheckpoint = 0;
+    let laps = 0;
+    let readyToFinish = false;
+    let lastOnFinish = false;
+    let raceFinished = false;
+    const TOTAL_LAPS = 5;
+
+
+    // tiempos
+    let lapStartTime = null;
+    let lapTimes = [];
+    let bestLap = null;
+
+    // mundo
+    let trackWidth = 6000, trackHeight = 3000;
+
+    const trackRect = [
+      { x: 2500, y: 2570, width: 1900, height: 200},
+      { x: 2200, y: 2350, width: 300, height: 400},
+      { x: 1500, y: 2300, width: 900, height: 200},
+      { x: 1000, y: 2200, width: 300, height: 300},
+      { x: 1200, y: 2240, width: 300, height: 300},
+      { x: 1400, y: 2260, width: 300, height: 300},
+      { x: 800, y: 2100, width: 300, height: 300},
+      { x: 900, y: 2300, width: 100, height: 100},
+      { x: 900, y: 1900, width: 300, height: 300},
+      { x: 900, y: 1700, width: 300, height: 300},
+      { x: 1100, y: 1800, width: 100, height: 300},
+      { x: 700, y: 1600, width: 300, height: 300},
+      { x: 600, y: 1400, width: 300, height: 300},
+      { x: 600, y: 1200, width: 300, height: 300},
+      { x: 650, y: 800, width: 300, height: 500},
+      { x: 750, y: 400, width: 500, height: 500},
+      { x: 1200, y: 100, width: 500, height: 500},
+      { x: 1600, y: 100, width: 600, height: 500},
+      { x: 2100, y: 500, width: 500, height: 600},
+      { x: 2250, y: 1000, width: 350, height: 400},
+      { x: 2450, y: 1300, width: 300, height: 300},
+      { x: 2650, y: 1200, width: 500, height: 500},
+      { x: 2650, y: 1500, width: 1200, height: 300},
+      { x: 3600, y: 1200, width: 1200, height: 350},
+      { x: 4800, y: 1300, width: 350, height: 350},
+      { x: 5000, y: 1500, width: 350, height: 350},
+      { x: 5000, y: 1850, width: 350, height: 350},
+      { x: 5000, y: 2200, width: 350, height: 350},
+      { x: 4650, y: 2200, width: 350, height: 350},
+      { x: 4300, y: 2200, width: 350, height: 350},
+      { x: 4300, y: 2400, width: 350, height: 350},
+    ];
+
+    const wallRects = [
+      { x: 2500, y: 2250, width: 1800, height: 100},
+      { x: 2200, y: 1950, width: 300, height: 300},
+      { x: 1500, y: 2000, width: 900, height: 200},
+      { x: 1400, y: 1000, width: 100, height: 1200},
+      { x: 1400, y: 1000, width: 700, height: 100},
+      { x: 2000, y: 1000, width: 100, height: 1000},
+      { x: 2000, y: 1800, width: 3000, height: 100},
+      { x: 4500, y: 1800, width: 100, height: 300},
+      { x: 4200, y: 1800, width: 300, height: 300},
+      { x: 3900, y: 2000, width: 300, height: 300},
+      { x: 100, y: 30, width: 40000, height: 100},
+      { x: 100, y: 2900, width: 40000, height: 100},
+      { x: 400, y: 40, width: 100, height: 40000},
+      { x: 5500, y: 40, width: 100, height: 40000},
+      { x: 3000, y: 40, width: 100, height: 1300},
+      { x: 3000, y: 1300, width: 600, height: 100},
+    ];
+
+    // checkpoints
+    const checkpoints = [
+      { id: 0, x: 1800, y: 2100, width: 50, height: 1300 },
+      { id: 1, x: 500, y: 1200, width: 1000, height: 50 },
+      { id: 2, x: 1800, y: 100, width: 50, height: 1000 },
+      { id: 3, x: 3000, y: 1400, width: 50, height: 500 },
+      { id: 4, x: 4000, y: 100, width: 50, height: 2000 },
+      { id: 5, x: 4500, y: 2100, width: 1000, height: 50 },
+      { id: 6, x: 4000, y: 2100, width: 50, height: 1000 },
+    ];
+
+    const aiPathRects = [
+  { x: 2600, y: 2600, width: 100, height: 100 },
+  { x: 2400, y: 2500, width: 100, height: 100 },
+  { x: 2200, y: 2400, width: 100, height: 100 },
+  { x: 2000, y: 2400, width: 100, height: 100 },
+  { x: 1800, y: 2350, width: 100, height: 100 },
+  { x: 1600, y: 2350, width: 100, height: 100 },
+  { x: 1400, y: 2350, width: 100, height: 100 },
+  { x: 1200, y: 2300, width: 100, height: 100 },
+  { x: 950, y: 2200, width: 100, height: 100 },
+  { x: 850, y: 2000, width: 100, height: 100 },
+  { x: 800, y: 1700, width: 100, height: 100 },
+  { x: 700, y: 1200, width: 100, height: 100 },
+  { x: 800, y: 800, width: 100, height: 100 },
+  { x: 900, y: 550, width: 100, height: 100 },
+  { x: 1400, y: 350, width: 100, height: 100 },
+  { x: 1700, y: 350, width: 100, height: 100 },
+  { x: 2000, y: 500, width: 100, height: 100 },
+  { x: 2200, y: 800, width: 100, height: 100 },
+  { x: 2400, y: 1100, width: 100, height: 100 },
+  { x: 2800, y: 1550, width: 100, height: 100 },
+  { x: 3300, y: 1550, width: 100, height: 100 },
+  { x: 3700, y: 1450, width: 100, height: 100 },
+  { x: 4000, y: 1400, width: 100, height: 100 },
+  { x: 4500, y: 1400, width: 100, height: 100 },
+  { x: 5150, y: 1600, width: 100, height: 100 },
+  { x: 5250, y: 1800, width: 100, height: 100 },
+  { x: 5200, y: 2100, width: 100, height: 100 },
+  { x: 5000, y: 2300, width: 100, height: 100 },
+  { x: 4850, y: 2300, width: 100, height: 100 },
+  { x: 4300, y: 2550, width: 100, height: 100 },
+];
+
+    // meta
+    const finishLine = { x: 2620, y: 2320, width: 10, height: 600 };
+
+    // coche
+    const carWidth = 50, carHeight = 100;
+    let carX = 2770, carY = 2725;
+    let carAngle = -Math.PI;
+    let speed = 0;
+
+    const ACCEL = 100, BRAKE = 400, DRAG = 200;
+    const MAX_SPEED = 700, MAX_REV = -100;
+    const TURN_RATE = 2.5;
+
+    const keys = {};
+    window.addEventListener("keydown", e => { keys[e.key] = true; e.preventDefault(); });
+    window.addEventListener("keyup", e => { keys[e.key] = false; });
+
+    const offCanvas = document.createElement("canvas");
+    const offCtx = offCanvas.getContext("2d");
+    offCanvas.width = trackWidth; offCanvas.height = trackHeight;
+
+    track.onload = () => {
+      offCtx.drawImage(track, 0, 0, track.naturalWidth, track.naturalHeight, 0, 0, trackWidth, trackHeight);
+      requestAnimationFrame(loop);
+    };
+
+    // estados
+    const lastOnCheckpoint = new Array(checkpoints.length).fill(false);
+
+    // util
+    function rectsOverlap(a, b) {
+      return a.x < b.x + b.width &&
+             a.x + a.width > b.x &&
+             a.y < b.y + b.height &&
+             a.y + a.height > b.y;
+    }
+
+    const aiPathPoints = aiPathRects.map(r => ({
+  x: r.x + r.width / 2,
+  y: r.y + r.height / 2
+}));
+
+// coche AI
+const aiCar = {
+  x: carX,   
+  y: carY,   
+  angle: carAngle,
+  speed: 0,
+  currentCheckpoint: 0,
+  img: new Image()
+};
+
+aiCar.img.src = "Imagenes/verde.png";
+const AI_CARS = [aiCar];
+
+const AI_SPEED = 450; 
+const AI_TURN = 2.5;   
+
+function updateAI(ai, dt){
+  const cp = aiPathPoints[ai.currentCheckpoint];
+  if(!cp) return;
+
+  const dx = cp.x - ai.x;
+  const dy = cp.y - ai.y;
+  const targetAngle = Math.atan2(dy, dx);
+
+  let diff = targetAngle - ai.angle;
+  diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+  ai.angle += diff * AI_TURN * dt;
+
+  ai.speed += 200 * dt; // aceleración simple
+  if(ai.speed > AI_SPEED) ai.speed = AI_SPEED;
+
+  const nextX = ai.x + Math.cos(ai.angle) * ai.speed * dt;
+  const nextY = ai.y + Math.sin(ai.angle) * ai.speed * dt;
+
+  if(!checkWallCollision(nextX, nextY)){
+    ai.x = nextX;
+    ai.y = nextY;
+  } else {
+    ai.speed *= 0.5;
+  }
+
+  // si llegó al punto
+  if(Math.hypot(ai.x - cp.x, ai.y - cp.y) < 50){
+    ai.currentCheckpoint++;
+    if(ai.currentCheckpoint >= aiPathPoints.length) ai.currentCheckpoint = 0;
+  }
+}
+
+
+    function checkWallCollision(nextX, nextY) {
+      const carRect = { x: nextX - carWidth/2, y: nextY - carHeight/2, width: carWidth, height: carHeight };
+      for (let i = 0; i < wallRects.length; i++) {
+        if (rectsOverlap(carRect, wallRects[i])) return true;
+      }
+      return false;
+    }
+
+    // checkpoints/meta logic — usa rect-rect y edge detection
+    function checkCheckpoints() {
+      const carRect = { x: carX - carWidth/2, y: carY - carHeight/2, width: carWidth, height: carHeight };
+
+      // comprobar cada checkpoint (actual sólo cuenta si entras en él)
+      for (let i = 0; i < checkpoints.length; i++) {
+        const cp = checkpoints[i];
+        const onCp = rectsOverlap(carRect, cp);
+
+        if (i === currentCheckpoint && onCp && !lastOnCheckpoint[i]) {
+          // entrada al checkpoint correcto
+          currentCheckpoint++;
+          if (currentCheckpoint >= checkpoints.length) {
+            readyToFinish = true;
+          }
+        }
+
+        lastOnCheckpoint[i] = onCp;
+      }
+
+      // meta - entrada (edge)
+      const onFinish = rectsOverlap(carRect, finishLine);
+      if (onFinish && !lastOnFinish) {
+  const now = performance.now();
+
+  if (readyToFinish) {
+    laps++;
+
+    if (lapStartTime !== null) {
+      const lapTime = (now - lapStartTime) / 1000;
+      lapTimes.push(lapTime);
+      if (bestLap === null || lapTime < bestLap) bestLap = lapTime;
+    }
+
+    
+    // 🚩 comprobar si hemos terminado
+    if (laps >= TOTAL_LAPS) {
+      raceFinished = true;
+    } else {
+      // solo reiniciamos cronómetro y checkpoints si la carrera sigue
+      lapStartTime = now;
+      currentCheckpoint = 0;
+      readyToFinish = false;
+      for (let k = 0; k < lastOnCheckpoint.length; k++) lastOnCheckpoint[k] = false;
+    }
+  } else {
+    // si no está listo y aún no hemos empezado, usar la primera pasada para arrancar cronómetro
+    if (laps === 0 && lapStartTime === null) lapStartTime = now;
+  }
+}
+lastOnFinish = onFinish;
+}
+
+    // update / physics
+    function update(dt) {
+      let accel = ACCEL;
+      let maxSpeed = MAX_SPEED;
+
+      AI_CARS.forEach(ai => updateAI(ai, dt));
+
+      if (raceFinished) {
+    speed *= 0.95;
+    return;        
+  }
+
+      // input accel / brake
+      if (keys["ArrowUp"] || keys["w"]) speed += accel*dt;
+      else if (keys["ArrowDown"] || keys["s"]) {
+        if (speed > 0) speed -= BRAKE*dt; else speed -= BRAKE*0.5*dt;
+      } else {
+        if (speed > 0) { speed -= DRAG*dt; if (speed < 0) speed = 0; }
+        if (speed < 0) { speed += DRAG*dt; if (speed > 0) speed = 0; }
+      }
+
+      
+
+      // velocidad máxima fuera de pista
+      let onTrack = trackRect.some(r => carX >= r.x && carX <= r.x + r.width && carY >= r.y && carY <= r.y + r.height);
+      if (!onTrack) maxSpeed = 350;
+
+      if (speed > maxSpeed) speed = maxSpeed;
+      if (speed < MAX_REV) speed = MAX_REV;
+
+      const turn = TURN_RATE * (Math.abs(speed)/MAX_SPEED) * dt;
+      if (keys["ArrowLeft"] || keys["a"]) carAngle -= turn * (speed>=0?1:-1);
+      if (keys["ArrowRight"] || keys["d"]) carAngle += turn * (speed>=0?1:-1);
+
+      const nextX = carX + Math.cos(carAngle) * speed * dt;
+      const nextY = carY + Math.sin(carAngle) * speed * dt;
+
+      if (!checkWallCollision(nextX, nextY)) {
+        carX = nextX; carY = nextY;
+      } else {
+        speed = 0;
+      }
+
+      carX = Math.max(carWidth/2, Math.min(trackWidth-carWidth/2, carX));
+      carY = Math.max(carHeight/2, Math.min(trackHeight-carHeight/2, carY));
+
+      // revisar checkpoints/meta
+      checkCheckpoints();
+    }
+
+    function formatTime(s) {
+      if (s === null) return "--:--.--";
+      const m = Math.floor(s/60);
+      const sec = Math.floor(s%60);
+      const cent = Math.floor((s - Math.floor(s))*100);
+      return `${m}:${String(sec).padStart(2,'0')}.${String(cent).padStart(2,'0')}`;
+    }
+
+    // draw
+    function draw() {
+      const offsetX = carX - canvas.width/2;
+      const offsetY = carY - canvas.height/2;
+
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+
+      if (track.complete) {
+        ctx.drawImage(track, 0, 0, track.naturalWidth, track.naturalHeight, -offsetX, -offsetY, trackWidth, trackHeight);
+      } else {
+        ctx.fillStyle = "#166633"; ctx.fillRect(0,0,canvas.width,canvas.height);
+      }
+
+      if (SHOW_DEBUG) {
+        // checkpoints
+        ctx.save(); ctx.globalAlpha = 0.3;
+        checkpoints.forEach((cp,i) => {
+          ctx.fillStyle = (i < currentCheckpoint) ? "lime" : "blue";
+          ctx.fillRect(cp.x - offsetX, cp.y - offsetY, cp.width, cp.height);
+          ctx.fillStyle = "white"; ctx.font = "18px sans-serif";
+          ctx.fillText(i, cp.x - offsetX + 6, cp.y - offsetY + 20);
+        });
+        ctx.restore();
+
+        // finish
+        ctx.save(); ctx.globalAlpha = 0.3; ctx.fillStyle = "yellow";
+        ctx.fillRect(finishLine.x - offsetX, finishLine.y - offsetY, finishLine.width, finishLine.height);
+        ctx.restore();
+
+        // walls
+        ctx.save(); ctx.globalAlpha = 0.3; ctx.fillStyle = "red";
+        wallRects.forEach(r => ctx.fillRect(r.x - offsetX, r.y - offsetY, r.width, r.height));
+        ctx.restore();
+      }
+
+      // coche
+      ctx.save();
+      ctx.translate(canvas.width/2, canvas.height/2);
+      ctx.rotate(carAngle + Math.PI/2);
+      ctx.drawImage(car, -carWidth/2, -carHeight/2, carWidth, carHeight);
+      ctx.restore();
+
+      AI_CARS.forEach(ai => {
+  ctx.save();
+  ctx.translate(ai.x - offsetX, ai.y - offsetY);
+  ctx.rotate(ai.angle + Math.PI/2);
+  ctx.drawImage(ai.img, -carWidth/2, -carHeight/2, carWidth, carHeight);
+  ctx.restore();
+});
+
+      ctx.save();
+ctx.globalAlpha = 0.5;
+ctx.fillStyle = "black";
+aiPathRects.forEach(r => ctx.fillRect(r.x - offsetX, r.y - offsetY, r.width, r.height));
+ctx.restore();
+
+      // tiempos
+      let currentLapTime = 0;
+      if (lapStartTime !== null) currentLapTime = (performance.now() - lapStartTime) / 1000;
+
+      hud.textContent = `Vel: ${Math.round(speed)} | Vueltas: ${laps}/5\n`+
+                        `Lap: ${formatTime(currentLapTime)}  Best: ${bestLap ? formatTime(bestLap) : "--:--.--"}\n`
+      
+     if (raceFinished) {
+    ctx.save();
+    ctx.fillStyle = "rgba(0,0,0,0.7)";
+    ctx.fillRect(0, canvas.height/2 - 50, canvas.width, 100);
+    ctx.fillStyle = "yellow";
+    ctx.font = "bold 48px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("🏁 Carrera terminada 🏁", canvas.width/2, canvas.height/2 + 15);
+    ctx.restore();
+    document.getElementById("nextRaceBtn").style.display = "block";
+  }
+                      }
+
+   
+
+
+    // loop
+    let last = performance.now();
+    function loop(now) {
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      update(dt);
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    document.getElementById("nextRaceBtn").addEventListener("click", () => {
+  window.location.href = "Game.html";
+});
+
+    // start when track loaded (already set above)
+    track.onload = () => { requestAnimationFrame(loop); };
+  </script>
+</body>
+</html>
