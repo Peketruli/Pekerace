@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>F1 2D – Game</title>
+  <title>Pekerace</title>
   <style>
     body {
       margin: 0;
@@ -83,8 +83,8 @@
     <p><strong>Fecha:</strong> 16/03/2025</p>
     <p><strong>Carrera:</strong> Gran Premio de Australia</p>
     <p><strong>Circuito:</strong> Melbourne</p>
-    <img src="banderas/australia.png" alt="Bandera de Australia">
-    <img src="circuitos/melbourne.png" alt="Circuito de Melbourne">
+    <img src="australia.png" alt="Bandera de Australia">
+    <img src="melbourne.png" alt="Circuito de Melbourne">
     <br>
     <button id="closeRaceBtn">Cerrar</button>
   </div>
@@ -99,7 +99,7 @@
 let currentRace = parseInt(localStorage.getItem("currentRace")) || 0;
 
     const bg = new Image();
-    bg.src = 'Imagenes/H.png'; // tu imagen de fondo
+    bg.src = 'H.png'; // tu imagen de fondo
     bg.onload = () => drawRoom();
 
     const computer = {
